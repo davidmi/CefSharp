@@ -12,6 +12,7 @@
 #include "Internals\ClientAdapter.h"
 #include "Internals\Serialization\Primitives.h"
 #include "Internals\Messaging\Messages.h"
+#include "Internals\CefURLRequestWrapper.h"
 
 using namespace CefSharp::Internals::Messaging;
 using namespace CefSharp::Internals::Serialization;
@@ -405,6 +406,15 @@ IRequest^ CefFrameWrapper::CreateRequest(bool initializePostData)
     }
 
     return gcnew CefRequestWrapper(request);
+}
+
+IURLRequest^ CefFrameWrapper::CreateURLRequest(IRequest^ request)
+{
+    ThrowIfDisposed();
+
+    auto urlRequest = _frame->CreateURLRequest((CefRequestWrapper^)request, NULL);
+
+    return gcnew CefURLRequestWrapper(urlRequest);
 }
 
 void CefFrameWrapper::ThrowIfFrameInvalid()
