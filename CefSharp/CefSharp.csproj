@@ -103,6 +103,7 @@
     <Compile Include="DefaultApp.cs" />
     <Compile Include="Enums\SchemeOptions.cs" />
     <Compile Include="IURLRequest.cs" />
+    <Compile Include="IURLRequestClient.cs" />
     <Compile Include="ResourceRequestHandlerFactory.cs" />
     <Compile Include="ResourceRequestHandlerFactoryItem.cs" />
     <Compile Include="Enums\AlphaType.cs" />

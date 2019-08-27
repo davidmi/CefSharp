@@ -2,6 +2,7 @@
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
+using System.Threading;
 using CefSharp.OffScreen;
 using System.Threading.Tasks;
 using Xunit;
@@ -124,6 +125,56 @@ namespace CefSharp.Test.OffScreen
                     Assert.Equal(test, (string)javascriptResponse.Result);
                     output.WriteLine("{0} passes {1}", test, javascriptResponse.Result);
                 }
+            }
+        }
+
+        class URLRequestClient : IURLRequestClient
+        {
+            public bool GetAuthCredentials(bool isProxy, string host, int port, string realm, string scheme, IAuthCallback callback)
+            {
+                return true;
+            }
+
+            public void OnDownloadData(IURLRequest request, byte[] data)
+            {
+                return;
+            }
+
+            public void OnDownloadProgress(IURLRequest request, long current, long total)
+            {
+                return;
+            }
+
+            public void OnRequestComplete(IURLRequest request)
+            {
+                return;
+            }
+
+            public void OnUploadProgress(IURLRequest request, long current, long total)
+            {
+                return;
+            }
+        }
+
+        [Fact]
+        public async Task CanMakeUrlRequest()
+        {
+            using (var browser = new ChromiumWebBrowser("http://www.google.com"))
+            {
+                await browser.LoadPageAsync();
+
+                var mainFrame = browser.GetMainFrame();
+                Assert.True(mainFrame.IsValid);
+
+                var request = mainFrame.CreateRequest(false);
+
+                request.Method = "GET";
+                request.Url = "http://www.google.com";
+                var urlRequest = mainFrame.CreateURLRequest(request, new URLRequestClient());
+
+                Assert.Equal(urlRequest.GetRequestStatus(), UrlRequestStatus.Success);
+                Assert.True(!string.IsNullOrEmpty(urlRequest.GetResponse().ToString()));
+                Assert.True(urlRequest.ResponseWasCached());
             }
         }
 
