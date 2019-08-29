@@ -2,6 +2,8 @@
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
+using System;
+using System.IO;
 using System.Threading;
 using CefSharp.OffScreen;
 using System.Threading.Tasks;
@@ -130,6 +132,15 @@ namespace CefSharp.Test.OffScreen
 
         class URLRequestClient : IURLRequestClient
         {
+            private Action<IURLRequest, byte[]> CompleteAction;
+            private MemoryStream ResponseBody = new MemoryStream();
+            private BinaryWriter StreamWriter;
+
+            public URLRequestClient(Action<IURLRequest, byte[]> completeAction)
+            {
+                CompleteAction = completeAction;
+                StreamWriter = new BinaryWriter(ResponseBody);
+            }
             public bool GetAuthCredentials(bool isProxy, string host, int port, string realm, string scheme, IAuthCallback callback)
             {
                 return true;
@@ -137,7 +148,7 @@ namespace CefSharp.Test.OffScreen
 
             public void OnDownloadData(IURLRequest request, byte[] data)
             {
-                return;
+                StreamWriter.Write(data);
             }
 
             public void OnDownloadProgress(IURLRequest request, long current, long total)
@@ -147,7 +158,8 @@ namespace CefSharp.Test.OffScreen
 
             public void OnRequestComplete(IURLRequest request)
             {
-                return;
+
+                CompleteAction(request, ResponseBody.ToArray());
             }
 
             public void OnUploadProgress(IURLRequest request, long current, long total)
@@ -159,22 +171,40 @@ namespace CefSharp.Test.OffScreen
         [Fact]
         public async Task CanMakeUrlRequest()
         {
-            using (var browser = new ChromiumWebBrowser("http://www.google.com"))
+            using (var browser = new ChromiumWebBrowser("https://code.jquery.com/jquery-3.4.1.min.js"))
             {
                 await browser.LoadPageAsync();
 
                 var mainFrame = browser.GetMainFrame();
                 Assert.True(mainFrame.IsValid);
 
-                var request = mainFrame.CreateRequest(false);
 
-                request.Method = "GET";
-                request.Url = "http://www.google.com";
-                var urlRequest = mainFrame.CreateURLRequest(request, new URLRequestClient());
+                IURLRequest urlRequest = null;
 
-                Assert.Equal(urlRequest.GetRequestStatus(), UrlRequestStatus.Success);
-                Assert.True(!string.IsNullOrEmpty(urlRequest.GetResponse().ToString()));
-                Assert.True(urlRequest.ResponseWasCached());
+                var t = new TaskCompletionSource<string>();
+                var wasCached = false;
+                var requestClient = new URLRequestClient(
+                    (IURLRequest request, byte[] responseBody) =>
+                    {
+                        wasCached = request.ResponseWasCached();
+                        t.TrySetResult(System.Text.Encoding.UTF8.GetString(responseBody));
+                    }
+                );
+
+                //Make the request on the CEF UI Thread
+                await Cef.UIThreadTaskFactory.StartNew(delegate
+                {
+                    var request = mainFrame.CreateRequest(false);
+
+                    request.Method = "GET";
+                    request.Url = "https://code.jquery.com/jquery-3.4.1.min.js";
+                    urlRequest = mainFrame.CreateURLRequest(request, requestClient);
+                });
+
+                var stringResult = await t.Task;
+
+                Assert.True(!string.IsNullOrEmpty(stringResult));
+                Assert.True(wasCached);
             }
         }
 
