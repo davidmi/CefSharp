@@ -4,6 +4,7 @@
 
 #include "Stdafx.h"
 #include "CefURLRequestWrapper.h"
+#include "CefResponseWrapper.h"
 
 #include "Cef.h"
 
@@ -18,8 +19,7 @@ IResponse^ CefURLRequestWrapper::GetResponse()
 {
     ThrowIfDisposed();
 
-    // TODO: Implement
-    return nullptr;
+    return gcnew CefResponseWrapper(_urlRequest->GetResponse());
 }
 
 UrlRequestStatus CefURLRequestWrapper::GetRequestStatus()
